@@ -1,6 +1,8 @@
 package com.newsletterbot.telegram_bot.telegram.Service;
 
 import com.newsletterbot.telegram_bot.telegram.client.TelegramClient;
+import com.newsletterbot.telegram_bot.topic.service.AssuntoService;
+import com.newsletterbot.telegram_bot.user.service.UsuarioService;
 import org.springframework.boot.jackson.autoconfigure.JacksonProperties;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
@@ -13,13 +15,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TelegramUpdateService {
 
     private final TelegramClient telegram;
+    private final UsuarioService usuarioService;
+    private final AssuntoService assuntoService;
 
-    private final Map<Long, Set<String>> preferencias = new ConcurrentHashMap<>();
-
-    private static final Set<String> ASSUNTOS_VALIDOS = Set.of("tecnologia", "cibersegurança", "economia");
-
-    public TelegramUpdateService(TelegramClient telegram){
-            this.telegram = telegram;
+    public TelegramUpdateService(TelegramClient telegram, UsuarioService usuarioService, AssuntoService assuntoService) {
+        this.telegram = telegram;
+        this.usuarioService = usuarioService;
+        this.assuntoService = assuntoService;
     }
 
     public void processar(JsonNode update) {
@@ -37,77 +39,92 @@ public class TelegramUpdateService {
 
     private void processarMensagem(JsonNode message) {
         if(!"private".equals
-                (message.path("chat").path("type").asText(""))){
+                (message.path("chat").path("type").asString(""))){
             return;
         }
 
-        String texto = message.path("text").asText("");
+        if(!message.path("chat").path("id").isNumber()
+        || ! message.path("from").path("id").isNumber()){
+            return;
+        }
+
+        Long telegramId = message.path("from")
+                .path("id").asLong();
         Long chatId = message.path("chat")
                 .path("id").asLong();
+        String nome = message.path("from")
+                .path("first_name").asString("");
 
-        if(texto.equals("/start")){
-            preferencias.putIfAbsent(
-                    chatId,
-                    ConcurrentHashMap.newKeySet()
+        String comando = message.path("text").asString("");
+
+        switch(comando) {
+            case "/start" -> {
+                usuarioService.registrar(telegramId, chatId, nome);
+                telegram.sendMessage(
+                        chatId,
+                        "Bem vindo ao NewsBot!"
+                );
+                telegram.sendTopicMenu(chatId, assuntoService.listarAtivos());
+            }
+
+            case "/assuntos" ->  telegram.sendTopicMenu(chatId, assuntoService.listarAtivos());
+
+            case "/minhas_preferencias" -> {
+                var preferencias = usuarioService.consultarPreferencias(telegramId);
+
+                String resposta = preferencias.isEmpty() ? "Você ainda não escolheu assuntos."
+                        : "Seus assuntos:\n- "
+                        + String.join("\n- ", preferencias);
+                telegram.sendMessage(chatId, resposta);
+            }
+
+            default -> telegram.sendMessage(chatId,
+                    "Comandos disponíveis:\n"
+                    + "/start\n"
+                    +"/assuntos\n"
+                    +"/minhas_preferencias"
             );
-
-            telegram.sendMessage(chatId,
-                    "Bem vindo ao NewsBot!");
-
-            telegram.sendTopicMenu(chatId);
         }
     }
 
     private void processarCallback(JsonNode callback) {
-        String callbackId = callback.path("id").asText();
-        String data = callback.path("data").asText("");
+        String callbackId = callback.path("id").asString();
+        String data = callback.path("data").asString("");
 
-        if(!data.startsWith("topic:")){
-            telegram.answerCallback(callbackId);
-            return;
-        }
+       JsonNode origem = callback.path("message")
+               .path("chat");
 
-        if(!"private".equals(
-                callback.path("message")
-                        .path("chat")
-                        .path("type").asText()
-        )) {
-            telegram.answerCallback(callbackId);
-            return;
-        }
+       if(!"private".equals(origem.path("type").asString())
+               || !origem.path("id").isNumber()
+               || !callback.path("from").path("id").isNumber()){
+           return;
+       }
 
-        String slug = data.substring(6);
-        if(!ASSUNTOS_VALIDOS.contains(slug)) {
-            telegram.answerCallback(callbackId);
-            return;
-        }
+       Long telegramId = callback.path("from")
+               .path("id").asLong();
+       Long chatId = origem.path("id").asLong();
 
-        Long usuarioId = callback.path("form")
-                .path("id").asLong();
+       if(data.startsWith("subscribe:")){
+           String slug = data.substring("subscribe:".length());
+           usuarioService.inscrever(telegramId, slug);
 
-        Long chatId = callback.path("message")
-                .path("chat").path("id").asLong();
+           telegram.answerCallback(callbackId);
 
-        Set <String> assuntos = preferencias.computeIfAbsent(usuarioId, id-> ConcurrentHashMap.newKeySet());
+           telegram.sendMessage(chatId,
+                   "Inscrição realizada: " + slug
+                   );
+       }
+       else if(data.startsWith("unsubscribe:")){
 
-        boolean adicionado;
+           String slug = data.substring("unsubscribe:".length());
+           usuarioService.cancelarInscricao(telegramId, slug);
+           telegram.answerCallback(callbackId);
+           telegram.sendMessage(chatId,
+                   "Inscrição cancelada: " + slug);
+       }
+       else{
+           telegram.answerCallback(callbackId);
+       }
 
-        if(assuntos.contains(slug)){
-            assuntos.remove(slug);
-            adicionado = false;
-        }
-        else{
-            assuntos.add(slug);
-            adicionado = true;
-        }
-
-        telegram.answerCallback(callbackId);
-
-        telegram.sendMessage(
-                chatId,
-                adicionado
-                        ? "Assunto adicionado:" + slug
-                        : "Assunto removido:" + slug
-        );
     }
 }
