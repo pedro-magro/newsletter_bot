@@ -115,7 +115,7 @@ Follow standard Java conventions:
 
 Existing Java files contain tabs in some blocks. Do not reformat unrelated files solely to change indentation. Keep formatting consistent with the file being edited and avoid broad mechanical formatting changes.
 
-The existing `UsuarioTopico` repository name does not follow the `Repository` suffix convention. Treat it as legacy code; prefer `UsuarioRepository` or a more descriptive `...Repository` name for new work and do not introduce additional names with this inconsistency.
+The existing `UsuarioRepository` repository name does not follow the `Repository` suffix convention. Treat it as legacy code; prefer `UsuarioRepository` or a more descriptive `...Repository` name for new work and do not introduce additional names with this inconsistency.
 
 Maven XML currently uses tabs. Preserve the existing style when editing `pom.xml`.
 

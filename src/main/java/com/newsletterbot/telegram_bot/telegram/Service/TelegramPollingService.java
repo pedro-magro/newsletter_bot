@@ -8,7 +8,7 @@ import tools.jackson.databind.JsonNode;
 
 @Service
 @ConditionalOnProperty(
-        name = "telegram.bot.pooling.enabled",
+        name = "telegram.bot.polling.enabled",
         havingValue = "true"
 )
 public class TelegramPollingService {

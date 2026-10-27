@@ -1,5 +1,6 @@
 package com.newsletterbot.telegram_bot.telegram.client;
 
+import com.newsletterbot.telegram_bot.telegram.dto.TelegramTopic;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -46,27 +47,13 @@ public class TelegramClient {
                 .toBodilessEntity();
     }
 
-    public void sendTopicMenu(Long chatId) {
-        var keyboard = List.of(
-                List.of(
-                        Map.of(
-                                "text", "Tecnologia",
-                                "callback_data", "topic:tecnologia"
-                        )
-                ),
-                List.of(
-                        Map.of(
-                                "text", "Cibersegurança",
-                                "callback_data", "topic:ciberseguranca"
-                        )
-                ),
-                List.of(
-                        Map.of(
-                                "text", "Economia",
-                                "callback_data", "topic:economia"
-                        )
-                )
-        );
+    public void sendTopicMenu(Long chatId, List<TelegramTopic> topics) {
+        var keyboard = topics.stream()
+                        .map(topic-> List.of(
+                                Map.of("text", topic.nome(),
+                                        "callback_data", "subscribe:" + topic.slug())
+                        ))
+                        .toList();
 
         client.post()
                 .uri("/sendMessage")
