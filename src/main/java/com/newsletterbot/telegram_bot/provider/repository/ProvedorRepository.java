@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface ProvedorRepository extends JpaRepository<Provedor, Long> {
 
     Optional<Provedor> findByAtivoTrueOrderByPrioridadeAsc();
+    Optional<Provedor> findByCodigo(String codigo);
 }

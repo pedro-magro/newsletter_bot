@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface NoticiaRepository extends JpaRepository<Noticia, Long> {
@@ -29,4 +30,5 @@ public interface NoticiaRepository extends JpaRepository<Noticia, Long> {
             @Param("inicio")OffsetDateTime inicio,
             @Param("fim") OffsetDateTime fim
             );
+    Optional<Noticia> findByUrlHash(String urlHash);
 }
